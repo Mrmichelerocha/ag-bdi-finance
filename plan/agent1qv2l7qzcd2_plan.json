@@ -1,0 +1,41 @@
+{
+    "min": {
+        "context": {
+            "price_min_check": true
+        },
+        "plan": [
+            "get_min",
+            "check_min"
+        ]
+    },
+    "max": {
+        "context": {
+            "price_max_check": true
+        },
+        "plan": [
+            "get_max",
+            "check_max"
+        ]
+    },
+    "day_trade": {
+        "context": {
+            "opening": true
+        },
+        "plan": [
+            "trade",
+            "check_wallet",
+            "check_price"
+        ]
+    },
+    "analytic": {
+        "context": {
+            "opening": true
+        },
+        "plan": [
+            "day_trade",
+            "max",
+            "min",
+            "get_symbol"
+        ]
+    }
+}

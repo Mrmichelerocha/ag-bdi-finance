@@ -1,0 +1,12 @@
+[MESSAGES CONTROL]
+disable=missing-module-docstring,
+        missing-class-docstring,
+        missing-function-docstring,
+        no-name-in-module,
+        too-few-public-methods,
+        too-many-public-methods,
+        too-many-instance-attributes,
+        duplicate-code,
+        too-many-arguments,
+        logging-fstring-interpolation
+
