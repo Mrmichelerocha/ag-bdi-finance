@@ -151,7 +151,7 @@ class KeyValueStore:
          # enquanto tem açõe empilhadas na intenção
         while self._data_intention:
             next = self._data_intention.pop()
-            print(next)
+            print("PROXIMA AÇÃO: ", next)
             # se for uma ação, executa ela (ou seja, não há entrada na plan library para 'next')
             if self.get_plan(next) == None:
                 next_action = Environment.action()

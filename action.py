@@ -37,9 +37,9 @@ class Action:
             
     def get_min(self, ctx):
         symbol = ctx.storage.get_belief("symbol")
-        print(symbol)
+        print("Este é a Ação que estamos analisando MINIMO: ", symbol)
         initial = '2020-01-01'
-        end = '2023-08-10' # time = datetime.datetime.now().strftime('%Y/%m/%d')
+        end = datetime.now().strftime('%Y-%m-%d')
 
         # Baixar os dados da ação usando a biblioteca yfinance
         dados_acao = yf.download(symbol, start=initial, end=end)
@@ -130,10 +130,10 @@ class Action:
         ganho_sobre_perda = media_lucro[1] / media_lucro[0]
 
         # Imprimir resultados
-        print("Média de lucro:", media_lucro)
-        print("Ganho sobre perda:", ganho_sobre_perda)
-        print("Taxa de acerto do lado:", acertou_lado)
-        print("Expectativa de lucro:", exp_mat_lucro * 100)
+        # print("Média de lucro:", media_lucro)
+        # print("Ganho sobre perda:", ganho_sobre_perda)
+        # print("Taxa de acerto do lado:", acertou_lado)
+        # print("Expectativa de lucro:", exp_mat_lucro * 100)
         #criando um código que você passa 60 dias e ele devolve a cotação
         #resumindo: vamos descobrir o preço da petrobras de hoje/amanha com esse modelo
 
@@ -167,7 +167,7 @@ class Action:
         previsao_de_preco = escalador.inverse_transform(previsao_de_preco)
 
         ############### ENTRA NO BANCO E COLOCA A CARTEIRA (SERIALIZER)#####################################################################
-        print(previsao_de_preco)
+        print("Esta é a previsão so preço MINIMO", previsao_de_preco)
         ctx.storage.set_belief(f"price_min_{symbol}", float(previsao_de_preco))
         ctx.storage.set_belief(f"price_min_check_{symbol}", True)
         self.up_min(ctx)
@@ -175,15 +175,17 @@ class Action:
     def check_min(self, ctx):
         symbol = ctx.storage.get_belief("symbol")
         if ctx.storage.get_belief(f"price_min_check_{symbol}") == True:
+            print("Checkar Preço MINIMO?: Falso")
             ctx.storage.set_belief(f"price_min_check", False)
         else:
+            print("Checkar Preço MINIMO?: True")
             ctx.storage.set_belief(f"price_min_check", True)         
         
     def get_max(self, ctx):
         symbol = ctx.storage.get_belief("symbol")
-        print(symbol)
+        print("Este é a Ação que estamos analisando MAXIMO: ", symbol)
         initial = '2020-01-01'
-        end = '2023-08-10' # time = datetime.datetime.now().strftime('%Y/%m/%d')
+        end = datetime.now().strftime('%Y-%m-%d')
 
         # Baixar os dados da ação usando a biblioteca yfinance
         dados_acao = yf.download(symbol, start=initial, end=end)
@@ -274,10 +276,10 @@ class Action:
         ganho_sobre_perda = media_lucro[1] / media_lucro[0]
 
         # Imprimir resultados
-        print("Média de lucro:", media_lucro)
-        print("Ganho sobre perda:", ganho_sobre_perda)
-        print("Taxa de acerto do lado:", acertou_lado)
-        print("Expectativa de lucro:", exp_mat_lucro * 100)
+        # print("Média de lucro:", media_lucro)
+        # print("Ganho sobre perda:", ganho_sobre_perda)
+        # print("Taxa de acerto do lado:", acertou_lado)
+        # print("Expectativa de lucro:", exp_mat_lucro * 100)
         #criando um código que você passa 60 dias e ele devolve a cotação
         #resumindo: vamos descobrir o preço da petrobras de hoje/amanha com esse modelo
 
@@ -311,7 +313,7 @@ class Action:
         previsao_de_preco = escalador.inverse_transform(previsao_de_preco)
 
         ############### ENTRA NO BANCO E COLOCA A CARTEIRA (SERIALIZER)#####################################################################
-        print(previsao_de_preco)
+        print("Esta é a previsão do preço MAXIMO: ", previsao_de_preco)
         ctx.storage.set_belief(f"price_max_{symbol}", float(previsao_de_preco))
         ctx.storage.set_belief(f"price_max_check_{symbol}", True)
         self.up_max(ctx)
@@ -319,8 +321,10 @@ class Action:
     def check_max(self, ctx):
         symbol = ctx.storage.get_belief("symbol")
         if ctx.storage.get_belief(f"price_max_check_{symbol}") == True:
+            print("Checkar Preço MAXIMO?: Falso")
             ctx.storage.set_belief(f"price_max_check", False)
         else:
+            print("Checkar Preço MAXIMO?: True")
             ctx.storage.set_belief(f"price_max_check", True)
         
     def trade(self, ctx):
@@ -331,17 +335,22 @@ class Action:
         price_max = ctx.storage.get_belief(f"price_max_{symbol}")
         opening = ctx.storage.get_belief("opening")
         if check_wallet:
-            if price_now > price_max:
-                ctx.storage.set_belief("sell", True)
-            elif opening:
-                 ctx.storage.set_belief("sell", False)
-            else:
-                self.swing(ctx)
-        else:
             if price_now < price_min:
+                print("preço MENOR que aprevisão MINIMO -> COMPRAR")
                 ctx.storage.set_belief("buy", True)
             else:
+                print("preço MAIOR que aprevisão MINIMO -> ESPERE COMPRAR")
                 ctx.storage.set_belief("buy", False)
+        else:
+            if price_now > price_max:
+                print("preço MAIOR que aprevisão MAXIMA -> VENDER")
+                ctx.storage.set_belief("sell", True)
+            elif opening:
+                print("preço MENOR que aprevisão MAXIMA -> ESPERE VENDER")
+                ctx.storage.set_belief("sell", False)
+            else:
+                print("preço MENOR que aprevisão MAXIMA e FECHOU a bolsa")
+                self.swing(ctx)
                 
     def swing(self, ctx):
         ctx.storage.set_belief("msg_swing", True)
@@ -370,13 +379,13 @@ class Action:
 
         # Extrair o valor do elemento
         valor = element.text
-        print("Valor da div:", valor)
+        print("Valor do Preço da Ação AGORA: ", valor)
         limpo = ''.join(filter(lambda x: x.isdigit() or x == ',', valor))
 
         if limpo:
             numero_float = float(limpo.replace(',', '.'))
             ctx.storage.set_belief("price_now", numero_float)
-            print(numero_float)
+            print("Valor do Preço da Ação AGORA: ", numero_float)
         else:
             ctx.storage.set_belief("price_now", 0)
             print("A string não contém números ou vírgulas!")
@@ -390,7 +399,7 @@ class Action:
         
         
         ctx.storage.set_belief(f"sell_{symbol}", quant)
-        print("feito a ação de vender")
+        print("feito a ação de VENDER")
         self.up_sell(ctx)
     
     def buy(self, ctx):
@@ -400,7 +409,7 @@ class Action:
         
         
         ctx.storage.set_belief(f"buy_{symbol}", quant)
-        print("feito a ação de comprar")
+        print("feito a ação de COMPRAR")
         self.up_buy(ctx)
 
 
@@ -410,24 +419,22 @@ class Action:
         price_min = ctx.storage.get_belief(f"price_min_{symbol}")
 
         # URL do endpoint onde você deseja fazer o POST
-        url = 'http://localhost:8000/min/'
+        url = 'http://127.0.0.1:8000/min/'
 
         # Dados que você deseja enviar no corpo do POST (substitua pelos seus dados)
         data = {
-            '_symbol': symbol,
-            '_price_min': price_min,
+            '_symbol': str(symbol),
+            '_price_min': float(price_min),
         }
 
         # Realiza o pedido POST
         response = requests.post(url, data=data)
 
         # Verifica a resposta do servidor
-        if response.status_code == 200:
-            print("Pedido POST bem-sucedido!")
-            print("Resposta do servidor:")
-            print(response.text)
+        if response.status_code == 201:
+            print("Pedido POST bem-sucedido! MIN")
         else:
-            print("Erro ao fazer o pedido POST. Código de status:", response.status_code)
+            print("Erro ao fazer o pedido POST MIN. Código de status:", response.status_code)
 
     
     def up_max(self, ctx):
@@ -435,76 +442,87 @@ class Action:
         price_max = ctx.storage.get_belief(f"price_max_{symbol}")
 
         # URL do endpoint onde você deseja fazer o POST
-        url = 'http://localhost:8000/max/'
+        url = 'http://127.0.0.1:8000/max/'
 
         # Dados que você deseja enviar no corpo do POST (substitua pelos seus dados)
         data = {
-            '_symbol': symbol,
-            '_price_max': price_max
+            '_symbol': str(symbol),
+            '_price_max': float(price_max),
         }
 
         # Realiza o pedido POST
         response = requests.post(url, data=data)
 
         # Verifica a resposta do servidor
-        if response.status_code == 200:
-            print("Pedido POST bem-sucedido!")
-            print("Resposta do servidor:")
-            print(response.text)
+        if response.status_code == 201:
+            print("Pedido POST bem-sucedido! MAX")
         else:
-            print("Erro ao fazer o pedido POST. Código de status:", response.status_code)
+            print("Erro ao fazer o pedido POST MAX. Código de status:", response.status_code)
 
     
     def up_buy(self, ctx):
         symbol = ctx.storage.get_belief("symbol")
+        price_max = ctx.storage.get_belief(f"price_max_{symbol}")
         price_min = ctx.storage.get_belief(f"price_min_{symbol}")
         price_now = ctx.storage.get_belief("price_now")
         quant = 1
 
         # URL do endpoint onde você deseja fazer o POST
-        url = 'http://localhost:8000/wallet/'
+        url = 'http://127.0.0.1:8000/transaction/'
 
         # Dados que você deseja enviar no corpo do POST (substitua pelos seus dados)
         data = {
-            '_symbol': symbol,
-            '_price_min': price_min,
-            '_price_now': price_now,
-            '_quant': quant
+            '_transaction': str(symbol),
+            '_operation': "BUY",
+            '_quant': int(quant),
+            '_price_now': float(price_now),
+            '_price_min': float(price_min),
+            '_price_max': float(price_max),
+        }
+        # Realiza o pedido POST
+        response = requests.post(url, data=data)
+
+        # Verifica a resposta do servidor
+        if response.status_code == 201:
+            print("Pedido POST bem-sucedido! BUY")
+        else:
+            print("Erro ao fazer o pedido POST BUY. Código de status:", response.status_code)
+
+    
+    def up_sell(self,ctx):
+        symbol = ctx.storage.get_belief("symbol")
+        price_max = ctx.storage.get_belief(f"price_max_{symbol}")
+        price_min = ctx.storage.get_belief(f"price_min_{symbol}")
+        price_now = ctx.storage.get_belief("price_now")
+        quant = 1
+
+        # URL do endpoint onde você deseja fazer o POST
+        url = 'http://127.0.0.1:8000/transaction/'
+
+        # Dados que você deseja enviar no corpo do POST (substitua pelos seus dados)
+        data = {
+            '_transaction': str(symbol),
+            '_operation': "SELL",
+            '_quant': int(quant),
+            '_price_now': float(price_now),
+            '_price_min': float(price_min),
+            '_price_max': float(price_max),
         }
 
         # Realiza o pedido POST
         response = requests.post(url, data=data)
 
         # Verifica a resposta do servidor
-        if response.status_code == 200:
-            print("Pedido POST bem-sucedido!")
-            print("Resposta do servidor:")
-            print(response.text)
+        if response.status_code == 201:
+            print("Pedido POST bem-sucedido! SELL")
         else:
-            print("Erro ao fazer o pedido POST. Código de status:", response.status_code)
-
-    
-    def up_sell(self,ctx):
-        symbol = ctx.storage.get_belief("symbol")
-
-        # URL do endpoint onde você deseja fazer o DELETE
-        url = f'http://localhost:8000/wallet/?_symbol={symbol}'
-
-        # Realiza o pedido DELETE
-        response = requests.delete(url)
-
-        # Verifica a resposta do servidor
-        if response.status_code == 204:
-            print("Pedido DELETE bem-sucedido!")
-        else:
-            print("Erro ao fazer o pedido DELETE. Código de status:", response.status_code)
-  
+            print("Erro ao fazer o pedido POST SELL. Código de status:", response.status_code)
     
     def check_wallet(self, ctx):
         symbol = ctx.storage.get_belief("symbol")
         
         # URL do endpoint onde você deseja fazer o GET para verificar se o símbolo está no banco
-        url = f'http://localhost:8000/wallet/?_symbol={symbol}'
+        url = f'http://127.0.0.1:8000/wallet/?_symbol={symbol}'
 
         # Realiza a requisição GET
         response = requests.get(url)
@@ -513,10 +531,15 @@ class Action:
         if response.status_code == 200:
             data = response.json()
             if isinstance(data, list) and len(data) > 0:
-                print("O símbolo está contido no banco.")
-                ctx.storage.set_belief("symbol_buy", False)
+                wallet_entry = data[0]
+                if wallet_entry["_quant"] == 0:
+                    print(f"O símbolo {symbol} está contido na carteira WALLET com quantidade 0.")
+                    ctx.storage.set_belief("symbol_buy", True)
+                else:
+                    print(f"O símbolo {symbol} está contido na carteira WALLET")
+                    ctx.storage.set_belief("symbol_buy", False)
             else:
-                print("O símbolo não está no banco.")
+                print("O símbolo NÂO está na carteira WALLET")
                 ctx.storage.set_belief("symbol_buy", True)
         else:
-            print("Erro ao fazer a requisição GET. Código de status:", response.status_code)
+            print("Erro ao fazer a requisição GET WALLET. Código de status:", response.status_code)

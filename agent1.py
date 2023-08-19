@@ -10,17 +10,17 @@ action = Action()
   
 @agent1.on_event('startup')
 async def plan_event(ctx: Context):
-    agent1.belief(ctx, "opening", False)
+    agent1.belief(ctx, "opening", True)
     agent1.belief(ctx, "symbol", "None")
     agent1.belief(ctx, "wallet", "None")
     agent1.belief(ctx, "price_min_check", True)
     agent1.belief(ctx, "price_max_check", True)
     agent1.belief(ctx, "msg_swing", False)
     
-    agent1.set_plan_library(ctx, "min", {"price_min_check": True}, ["get_min", "check_min"])
-    agent1.set_plan_library(ctx, "max", {"price_max_check": True}, ["get_max", "check_max"])
+    agent1.set_plan_library(ctx, "min", {"price_min_check": True}, ["get_min"])
+    agent1.set_plan_library(ctx, "max", {"price_max_check": True}, ["get_max"])
     agent1.set_plan_library(ctx, "day_trade", {"opening": True}, ["trade", "check_wallet", "check_price"])
-    agent1.set_plan_library(ctx, "analytic", {"opening": True}, ["day_trade", "max", "min", "get_symbol"])
+    agent1.set_plan_library(ctx, "analytic", {"opening": True}, ["day_trade", "max", "check_max", "min", "check_min", "get_symbol"])
 
 @agent1.on_interval(period=10.5)
 async def plan_interval(ctx: Context):

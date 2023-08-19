@@ -1,6 +1,8 @@
 [
     "day_trade",
     "max",
+    "check_max",
     "min",
+    "check_min",
     "get_symbol"
 ]

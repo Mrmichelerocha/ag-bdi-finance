@@ -4,8 +4,7 @@
             "price_min_check": true
         },
         "plan": [
-            "get_min",
-            "check_min"
+            "get_min"
         ]
     },
     "max": {
@@ -13,8 +12,7 @@
             "price_max_check": true
         },
         "plan": [
-            "get_max",
-            "check_max"
+            "get_max"
         ]
     },
     "day_trade": {
@@ -34,7 +32,9 @@
         "plan": [
             "day_trade",
             "max",
+            "check_max",
             "min",
+            "check_min",
             "get_symbol"
         ]
     }
