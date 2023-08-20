@@ -21,6 +21,8 @@
         },
         "plan": [
             "trade",
+            "check_buyorsell",
+            "check_upordown",
             "check_wallet",
             "check_price"
         ]

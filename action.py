@@ -10,10 +10,19 @@ from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense
 from datetime import datetime, timedelta
-from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
+from selenium import webdriver
+import pandas as pd
+import yfinance as yf
+from finta import TA
+import numpy as np
+import skfuzzy as fuzz
+from skfuzzy import control as ctrl
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 
 class Action:
     def date(self, ctx):
@@ -22,18 +31,56 @@ class Action:
         print("###> update horary <###")
         
     def get_symbol(self, ctx):
-        # nome = ctx.storage.get_belief("symbol")
-        stock_symbols = ["AAPL", "GOOGL", "TSLA"]
+        # Set up the Chrome driver
+        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
+
+        # Navigate to the URL
+        url = 'https://www.fundamentus.com.br/resultado.php'
+        driver.get(url)
+
+        # Find the table element
+        local_tabela = '/html/body/div[1]/div[2]/table'
+        elemento = driver.find_element("xpath", local_tabela)
+        html_tabela = elemento.get_attribute('outerHTML')
+        tabela = pd.read_html(str(html_tabela), thousands='.', decimal=',')[0]
+
+        # Clean up and preprocess the data
+        tabela = tabela.set_index("Papel")
+        tabela = tabela[['Cotação', 'EV/EBIT', 'ROIC', 'Liq.2meses']]
+
+        tabela['ROIC'] = tabela['ROIC'].str.replace("%", "")
+        tabela['ROIC'] = tabela['ROIC'].str.replace(".", "")
+        tabela['ROIC'] = tabela['ROIC'].str.replace(",", ".")
+        tabela['ROIC'] = tabela['ROIC'].astype(float)
+
+        tabela = tabela[tabela['Liq.2meses'] > 1000000]
+        tabela = tabela[tabela['EV/EBIT'] > 0]
+        tabela = tabela[tabela['ROIC'] > 0]
+
+        tabela['ranking_ev_ebit'] = tabela['EV/EBIT'].rank(ascending = True)
+        tabela['ranking_roic'] = tabela['ROIC'].rank(ascending = False)
+        tabela['ranking_total'] = tabela['ranking_ev_ebit'] + tabela['ranking_roic']
+
+        tabela = tabela.sort_values('ranking_total')
+
+        # Exclui a primeira linha onde o valor é "Papel"
+        tabela = tabela.iloc[1:]
+
+        # Extrai os valores da coluna "Papel"
+        parametros = tabela.head(6).index.tolist()
+
+        print(parametros)
+        
         current_symbol = ctx.storage.get_belief("symbol")
 
-        if current_symbol in stock_symbols:
-            index = stock_symbols.index(current_symbol)
-            next_index = (index + 1) % len(stock_symbols)
-            next_symbol = stock_symbols[next_index]
+        if current_symbol in parametros:
+            index = parametros.index(current_symbol)
+            next_index = (index + 1) % len(parametros)
+            next_symbol = parametros[next_index]
             
             ctx.storage.set_belief("symbol", next_symbol)
         else:
-            ctx.storage.set_belief("symbol", stock_symbols[0])         
+            ctx.storage.set_belief("symbol", parametros[0])         
             
     def get_min(self, ctx):
         symbol = ctx.storage.get_belief("symbol")
@@ -42,7 +89,7 @@ class Action:
         end = datetime.now().strftime('%Y-%m-%d')
 
         # Baixar os dados da ação usando a biblioteca yfinance
-        dados_acao = yf.download(symbol, start=initial, end=end)
+        dados_acao = yf.download(symbol + ".SA", start=initial, end=end)
 
         # Extrair os valores de baixa (Low) da ação e remodelar para entrada no escalador
         cotacao = dados_acao['Low'].to_numpy().reshape(-1, 1)
@@ -153,7 +200,7 @@ class Action:
             inicial = datetime.now() - timedelta(days = 252)
 
         #nao vai botar outra ação aqui hein kkkkkkkk
-        cotacoes = yf.download(symbol, initial, end)
+        cotacoes = yf.download(symbol+ ".SA", initial, end)
         ultimos_60_dias = cotacoes['Low'].iloc[-60:].values.reshape(-1, 1)
 
         ultimos_60_dias_escalado = escalador.transform(ultimos_60_dias)
@@ -188,7 +235,7 @@ class Action:
         end = datetime.now().strftime('%Y-%m-%d')
 
         # Baixar os dados da ação usando a biblioteca yfinance
-        dados_acao = yf.download(symbol, start=initial, end=end)
+        dados_acao = yf.download(symbol + ".SA", start=initial, end=end)
 
         # Extrair os valores de baixa (High) da ação e remodelar para entrada no escalador
         cotacao = dados_acao['High'].to_numpy().reshape(-1, 1)
@@ -299,7 +346,7 @@ class Action:
             inicial = datetime.now() - timedelta(days = 252)
 
         #nao vai botar outra ação aqui hein kkkkkkkk
-        cotacoes = yf.download(symbol, initial, end)
+        cotacoes = yf.download(symbol+ ".SA", initial, end)
         ultimos_60_dias = cotacoes['High'].iloc[-60:].values.reshape(-1, 1)
 
         ultimos_60_dias_escalado = escalador.transform(ultimos_60_dias)
@@ -328,33 +375,60 @@ class Action:
             ctx.storage.set_belief(f"price_max_check", True)
         
     def trade(self, ctx):
-        symbol = ctx.storage.get_belief("symbol")
-        check_wallet = ctx.storage.get_belief("symbol_buy")
-        price_now = ctx.storage.get_belief("price_now")
-        price_min = ctx.storage.get_belief(f"price_min_{symbol}")
-        price_max = ctx.storage.get_belief(f"price_max_{symbol}")
-        opening = ctx.storage.get_belief("opening")
-        if check_wallet:
-            if price_now < price_min:
-                print("preço MENOR que aprevisão MINIMO -> COMPRAR")
-                ctx.storage.set_belief("buy", True)
-            else:
-                print("preço MAIOR que aprevisão MINIMO -> ESPERE COMPRAR")
-                ctx.storage.set_belief("buy", False)
+        get_metric = ctx.storage.get_belief("metric")
+        get_direction = ctx.storage.get_belief("direction")
+        get_wallet = ctx.storage.get_belief("symbol_buy")
+        
+        
+        # Definindo as variáveis de entrada e saída fuzzy
+        direction = ctrl.Antecedent(np.arange(-1, 2, 1), 'direction')  # -1: Descer, 0: Manter, 1: Subir
+        metric = ctrl.Antecedent(np.arange(-1, 2, 1), 'metric')  # -1: Vender, 0: Manter, 1: Comprar
+        act = ctrl.Consequent(np.arange(-1, 2, 1), 'act')  # -1: Vender, 0: Manter, 1: Comprar
+
+        # Definindo os conjuntos fuzzy para direction
+        direction['down'] = fuzz.trimf(direction.universe, [-1, -1, 0])
+        direction['hold'] = fuzz.trimf(direction.universe, [-1, 0, 1])
+        direction['up'] = fuzz.trimf(direction.universe, [0, 1, 1])
+
+        # Definindo os conjuntos fuzzy para metric e act
+        metric['sell'] = fuzz.trimf(metric.universe, [-1, -1, 0])
+        metric['hold'] = fuzz.trimf(metric.universe, [-1, 0, 1])
+        metric['buy'] = fuzz.trimf(metric.universe, [0, 1, 1])
+
+        act['sell'] = fuzz.trimf(act.universe, [-1, -1, 0])
+        act['hold'] = fuzz.trimf(act.universe, [-1, 0, 1])
+        act['buy'] = fuzz.trimf(act.universe, [0, 1, 1])
+
+        # Regras fuzzy
+        regra1 = ctrl.Rule(direction['down'] & metric['sell'], act['sell'])
+        regra2 = ctrl.Rule(direction['down'] & metric['buy'], act['buy'])
+        regra3 = ctrl.Rule(direction['up'] & metric['sell'], act['sell'])
+        regra4 = ctrl.Rule(direction['hold'] & metric['hold'], act['hold'])
+        regra_fallback = ctrl.Rule(~regra1.antecedent & ~regra2.antecedent & ~regra3.antecedent & ~regra4.antecedent, act['hold'])
+
+        # Sistema de controle fuzzy
+        sistema_ctrl = ctrl.ControlSystem([regra1, regra2, regra3, regra4, regra_fallback])
+        sistema = ctrl.ControlSystemSimulation(sistema_ctrl)
+
+        # Entrada: direction da act e act anterior
+        sistema.input['direction'] = get_direction  # 1: Subir
+        sistema.input['metric'] = get_metric  # -1: Vender
+
+        # Calcula a saída do sistema fuzzy
+        sistema.compute()
+
+        # Saída: act recomendada
+        act_fuzzy = sistema.output['act']
+        print("calculo Fuzzy: ", act_fuzzy)
+        act_recommended = "sell" if act_fuzzy <= -0.5 else ("hold" if -0.5 < act_fuzzy <= 0.5 else "buy")
+        print("Ação Recomendada: ", act_recommended)
+        
+        if act_recommended == "sell":
+            if get_wallet:
+                ctx.storage.set_belief(act_recommended, True)
         else:
-            if price_now > price_max:
-                print("preço MAIOR que aprevisão MAXIMA -> VENDER")
-                ctx.storage.set_belief("sell", True)
-            elif opening:
-                print("preço MENOR que aprevisão MAXIMA -> ESPERE VENDER")
-                ctx.storage.set_belief("sell", False)
-            else:
-                print("preço MENOR que aprevisão MAXIMA e FECHOU a bolsa")
-                self.swing(ctx)
-                
-    def swing(self, ctx):
-        ctx.storage.set_belief("msg_swing", True)
-                
+            ctx.storage.set_belief(act_recommended, True)
+                                          
     def check_price(self, ctx):     
         symbol = ctx.storage.get_belief("symbol")           
 
@@ -391,6 +465,71 @@ class Action:
             print("A string não contém números ou vírgulas!")
 
         driver.quit()
+  
+    def check_upordown(self, ctx):
+        symbol = ctx.storage.get_belief("symbol")
+        price_min = ctx.storage.get_belief(f"price_min_{symbol}")
+        price_max = ctx.storage.get_belief(f"price_max_{symbol}")    
+        
+        if price_min > price_max:
+            ctx.storage.set_belief("direction", 1) # up
+        elif price_max < price_min:
+            ctx.storage.set_belief("direction", -1) # down
+        else:
+            ctx.storage.set_belief("direction", 0) # hold
+            
+    def check_buyorsell(self, ctx):
+        symbol = ctx.storage.get_belief("symbol")
+        try:
+            data = yf.download(symbol + ".SA", period="1y")  # Baixa dados do último ano
+            
+            # Se os dados estiverem vazios, pule para o próximo symbol
+            if data.empty:
+                print(f"Sem dados para o symbol {symbol}. Pulando...")
+            
+            # Calcula médias móveis
+            sma_50 = TA.SMA(data, 50)
+            sma_200 = TA.SMA(data, 200)
+            
+            # Bandas de Bollinger
+            bollinger = TA.BBANDS(data)
+            
+            # RSI
+            rsi = TA.RSI(data)
+
+            # Sistema de pontos
+            points = 0
+
+            # Golden Cross
+            if sma_50.iloc[-2] < sma_200.iloc[-2] and sma_50.iloc[-1] > sma_200.iloc[-1]:
+                points += 1
+            # Death Cross
+            elif sma_50.iloc[-2] > sma_200.iloc[-2] and sma_50.iloc[-1] < sma_200.iloc[-1]:
+                points -= 1
+            # RSI Sobrevendido
+            if rsi.iloc[-1] < 30:
+                points += 1
+            # RSI Sobrecomprado
+            elif rsi.iloc[-1] > 70:
+                points -= 1
+            # Acima da Banda Superior
+            if data['Close'].iloc[-1] > bollinger['BB_UPPER'].iloc[-1]:
+                points -= 1
+            # Abaixo da Banda Inferior
+            elif data['Close'].iloc[-1] < bollinger['BB_LOWER'].iloc[-1]:
+                points += 1
+
+            # Decisão com base nos pontos
+            if points > 0:
+                ctx.storage.set_belief("metric", 1) # "BUY"
+            elif points < 0:
+                ctx.storage.set_belief("metric", -1) # "SELL"
+            else:
+                ctx.storage.set_belief("metric", 0) # "HOLD"
+        
+        except Exception as e:
+            print(f"Erro ao processar o symbol {symbol}: {e}")
+
         
     def sell(self, ctx):
         symbol = ctx.storage.get_belief("symbol")

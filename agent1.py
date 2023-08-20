@@ -12,19 +12,17 @@ action = Action()
 async def plan_event(ctx: Context):
     agent1.belief(ctx, "opening", True)
     agent1.belief(ctx, "symbol", "None")
-    agent1.belief(ctx, "wallet", "None")
     agent1.belief(ctx, "price_min_check", True)
     agent1.belief(ctx, "price_max_check", True)
-    agent1.belief(ctx, "msg_swing", False)
     
     agent1.set_plan_library(ctx, "min", {"price_min_check": True}, ["get_min"])
     agent1.set_plan_library(ctx, "max", {"price_max_check": True}, ["get_max"])
-    agent1.set_plan_library(ctx, "day_trade", {"opening": True}, ["trade", "check_wallet", "check_price"])
+    agent1.set_plan_library(ctx, "day_trade", {"opening": True}, ["trade", "check_buyorsell", "check_upordown", "check_wallet", "check_price"])
     agent1.set_plan_library(ctx, "analytic", {"opening": True}, ["day_trade", "max", "check_max", "min", "check_min", "get_symbol"])
 
 @agent1.on_interval(period=10.5)
 async def plan_interval(ctx: Context):
-    agent1.desire(ctx, 'analytic') if agent1.contexto(ctx, {"opening": True}) else False
+    # agent1.desire(ctx, 'analytic') if agent1.contexto(ctx, {"opening": True}) else False
     agent1.update_intention(ctx)
     action.sell(ctx) if agent1.contexto(ctx, {"sell": True}) else False
     action.buy(ctx) if agent1.contexto(ctx, {"buy": True}) else False
