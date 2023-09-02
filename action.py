@@ -551,7 +551,6 @@ class Action:
         print("feito a ação de COMPRAR")
         self.up_buy(ctx)
 
-
 ######################################################## AQUI COLOCA OS ACESSOS AO BANCO #####################################################################
     def up_min(self, ctx):
         symbol = ctx.storage.get_belief("symbol")
