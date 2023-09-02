@@ -1,0 +1,10 @@
+pandas
+yfinance
+finta
+scikit-learn
+scikit-fuzzy
+webdriver_manager
+tensorflow
+selenium
+matplotlib
+chromedriver-autoinstaller
