@@ -23,8 +23,11 @@ from skfuzzy import control as ctrl
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
+import MetaTrader5 as mt5
+import urllib.request, json
 
 class Action:
+
     def date(self, ctx):
         time = datetime.now().strftime('%H:%M')
         ctx.storage.set_belief("horary", time)
@@ -85,12 +88,22 @@ class Action:
     def get_min(self, ctx):
         symbol = ctx.storage.get_belief("symbol")
         print("Este é a Ação que estamos analisando MINIMO: ", symbol)
-        initial = '2020-01-01'
-        end = datetime.now().strftime('%Y-%m-%d')
 
-        # Baixar os dados da ação usando a biblioteca yfinance
-        dados_acao = yf.download(symbol + ".SA", start=initial, end=end)
-
+        api_key = 'F3CLPQNGRS2NIQ9M'
+        url_string = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={symbol}.SAO&outputsize=full&apikey={api_key}"
+        with urllib.request.urlopen(url_string) as url:
+                    data = json.loads(url.read().decode())
+                    # extract stock market data
+                    data = data['Time Series (Daily)']
+                    dados_acao = pd.DataFrame(columns=['Date','Low','High','Close','Open','Volume'])
+                    for k,v in data.items():
+                        date = datetime.strptime(k, '%Y-%m-%d')
+                        data_row = [date.date(),float(v['3. low']),float(v['2. high']),
+                                    float(v['4. close']),float(v['1. open']),int(v['5. volume'])]
+                        dados_acao.loc[-1,:] = data_row
+                        dados_acao.index = dados_acao.index + 1
+        dados_acao.set_index('Date',inplace=True)
+        dados_acao.sort_index(inplace=True)
         # Extrair os valores de baixa (Low) da ação e remodelar para entrada no escalador
         cotacao = dados_acao['Low'].to_numpy().reshape(-1, 1)
 
@@ -200,8 +213,7 @@ class Action:
             inicial = datetime.now() - timedelta(days = 252)
 
         #nao vai botar outra ação aqui hein kkkkkkkk
-        cotacoes = yf.download(symbol+ ".SA", initial, end)
-        ultimos_60_dias = cotacoes['Low'].iloc[-60:].values.reshape(-1, 1)
+        ultimos_60_dias = dados_acao['Low'].iloc[-60:].values.reshape(-1, 1)
 
         ultimos_60_dias_escalado = escalador.transform(ultimos_60_dias)
 
@@ -231,12 +243,22 @@ class Action:
     def get_max(self, ctx):
         symbol = ctx.storage.get_belief("symbol")
         print("Este é a Ação que estamos analisando MAXIMO: ", symbol)
-        initial = '2020-01-01'
-        end = datetime.now().strftime('%Y-%m-%d')
 
-        # Baixar os dados da ação usando a biblioteca yfinance
-        dados_acao = yf.download(symbol + ".SA", start=initial, end=end)
-
+        api_key = 'F3CLPQNGRS2NIQ9M'
+        url_string = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={symbol}.SAO&outputsize=full&apikey={api_key}"
+        with urllib.request.urlopen(url_string) as url:
+                    data = json.loads(url.read().decode())
+                    # extract stock market data
+                    data = data['Time Series (Daily)']
+                    dados_acao = pd.DataFrame(columns=['Date','Low','High','Close','Open','Volume'])
+                    for k,v in data.items():
+                        date = datetime.strptime(k, '%Y-%m-%d')
+                        data_row = [date.date(),float(v['3. low']),float(v['2. high']),
+                                    float(v['4. close']),float(v['1. open']),int(v['5. volume'])]
+                        dados_acao.loc[-1,:] = data_row
+                        dados_acao.index = dados_acao.index + 1
+        dados_acao.set_index('Date',inplace=True)
+        dados_acao.sort_index(inplace=True)
         # Extrair os valores de baixa (High) da ação e remodelar para entrada no escalador
         cotacao = dados_acao['High'].to_numpy().reshape(-1, 1)
 
@@ -346,8 +368,7 @@ class Action:
             inicial = datetime.now() - timedelta(days = 252)
 
         #nao vai botar outra ação aqui hein kkkkkkkk
-        cotacoes = yf.download(symbol+ ".SA", initial, end)
-        ultimos_60_dias = cotacoes['High'].iloc[-60:].values.reshape(-1, 1)
+        ultimos_60_dias = dados_acao['High'].iloc[-60:].values.reshape(-1, 1)
 
         ultimos_60_dias_escalado = escalador.transform(ultimos_60_dias)
 
@@ -424,47 +445,24 @@ class Action:
         print("Ação Recomendada: ", act_recommended)
         
         if act_recommended == "sell":
-            if get_wallet:
+            if not get_wallet:
                 ctx.storage.set_belief(act_recommended, True)
-        else:
+        elif act_recommended == "hold":
+            if get_wallet:
+                ctx.storage.set_belief("buy", True)
+            else:
+                ctx.storage.set_belief(act_recommended, True)
+        elif act_recommended == 'buy':
             ctx.storage.set_belief(act_recommended, True)
                                           
     def check_price(self, ctx):     
         symbol = ctx.storage.get_belief("symbol")           
 
-        # Inicie o driver do Chrome
-        driver = webdriver.Chrome()
-
-        # Defina o tempo de espera implícita
-        driver.implicitly_wait(30)
-
-        # Abra o site do Yahoo
-        driver.get("https://www.google.com/finance/")
-
-        # Encontrar os campos de email e senha e preenchê-los
-        email_field = driver.find_element(By.XPATH, '//*[@id="yDmH0d"]/c-wiz[2]/div/div[3]/div[3]/div/div/div/div[1]/input[2]')
-        email_field.send_keys(symbol)
-        email_field.send_keys(Keys.RETURN)
-
-        # Encontrar o elemento usando o XPath
-        xpath = '//*[@id="yDmH0d"]/c-wiz[3]/div/div[4]/div/main/div[2]/div[1]/div[1]/c-wiz/div/div[1]/div/div[1]/div/div[1]/div/span/div/div'
-        element = driver.find_element(By.XPATH, xpath)
-        time.sleep(3)
-
-        # Extrair o valor do elemento
-        valor = element.text
+        mt5.initialize()
+        valor = mt5.symbol_info_tick(symbol).ask
         print("Valor do Preço da Ação AGORA: ", valor)
-        limpo = ''.join(filter(lambda x: x.isdigit() or x == ',', valor))
+        ctx.storage.set_belief("price_now", valor)
 
-        if limpo:
-            numero_float = float(limpo.replace(',', '.'))
-            ctx.storage.set_belief("price_now", numero_float)
-            print("Valor do Preço da Ação AGORA: ", numero_float)
-        else:
-            ctx.storage.set_belief("price_now", 0)
-            print("A string não contém números ou vírgulas!")
-
-        driver.quit()
   
     def check_upordown(self, ctx):
         symbol = ctx.storage.get_belief("symbol")
@@ -473,7 +471,7 @@ class Action:
         
         if price_min > price_max:
             ctx.storage.set_belief("direction", 1) # up
-        elif price_max < price_min:
+        elif price_max > price_min:
             ctx.storage.set_belief("direction", -1) # down
         else:
             ctx.storage.set_belief("direction", 0) # hold
@@ -533,22 +531,61 @@ class Action:
         
     def sell(self, ctx):
         symbol = ctx.storage.get_belief("symbol")
-        quant = 1
-        
-        
-        
-        ctx.storage.set_belief(f"sell_{symbol}", quant)
-        print("feito a ação de VENDER")
+        mt5.initialize()
+        mt5.symbol_select(symbol)
+        price=mt5.symbol_info_tick(symbol).bid
+        point = mt5.symbol_info(symbol).point
+        deviation=20
+        lot = 100.0
+        positions=mt5.positions_get(symbol=symbol)
+        for position in positions:
+            price=mt5.symbol_info_tick(symbol).ask
+            deviation=20
+            request={
+                "action": mt5.TRADE_ACTION_DEAL,
+                "symbol": symbol,
+                "volume": lot,
+                "type": mt5.ORDER_TYPE_SELL,
+                "position": position.ticket,
+                "price": price,
+                "deviation": deviation,
+                "magic": 234000,
+                "comment": "python script close",
+                "type_time": mt5.ORDER_TIME_GTC,
+                "type_filling": mt5.ORDER_FILLING_RETURN,
+            }
+            result_compra = mt5.order_send(request)
+            
+        ctx.storage.set_belief(f"buy_{symbol}", lot)
+        print(f"feito a ação de COMPRAR, o resultado foi {result_compra}")
+        ctx.storage.set_belief('sell', False)
         self.up_sell(ctx)
     
     def buy(self, ctx):
         symbol = ctx.storage.get_belief("symbol")
-        quant = 1
+        mt5.initialize()
+        mt5.symbol_select(symbol)
+        price=mt5.symbol_info_tick(symbol).ask
+        point = mt5.symbol_info(symbol).point
+        deviation=20
+        lot = 100.0
+        request = {
+            "action": mt5.TRADE_ACTION_DEAL,
+            "symbol": symbol,
+            "volume": lot,
+            "type": mt5.ORDER_TYPE_BUY,
+            "price": price,
+            "deviation": deviation,
+            "magic": 234000,
+            "comment": "python script open",
+            "type_time": mt5.ORDER_TIME_GTC,
+            "type_filling": mt5.ORDER_FILLING_RETURN,
+        }
+        result_compra = mt5.order_send(request)
         
-        
-        
-        ctx.storage.set_belief(f"buy_{symbol}", quant)
-        print("feito a ação de COMPRAR")
+        ctx.storage.set_belief(f"buy_{symbol}", lot)
+        print(f"feito a ação de COMPRAR, o resultado foi {result_compra}")
+        ctx.storage.set_belief('buy', False)
         self.up_buy(ctx)
 
 ######################################################## AQUI COLOCA OS ACESSOS AO BANCO #####################################################################
@@ -617,6 +654,7 @@ class Action:
             '_price_min': float(price_min),
             '_price_max': float(price_max),
         }
+
         # Realiza o pedido POST
         response = requests.post(url, data=data)
 
