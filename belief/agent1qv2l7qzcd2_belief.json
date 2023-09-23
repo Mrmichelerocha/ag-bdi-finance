@@ -1,5 +1,6 @@
 {
     "opening": true,
+<<<<<<< Updated upstream
     "symbol": "UNIP3",
     "price_min_check": false,
     "price_max_check": false,
@@ -32,4 +33,37 @@
     "price_min_check_FESA4": true,
     "price_max_FESA4": 48.1684455871582,
     "price_max_check_FESA4": true
+=======
+    "symbol": "KEPL3",
+    "price_min_check": false,
+    "price_max_check": false,
+    "price_min_PETR4": 33.60601806640625,
+    "price_min_check_PETR4": true,
+    "price_max_PETR4": 33.89860153198242,
+    "price_max_check_PETR4": true,
+    "price_now": 11.94,
+    "symbol_buy": true,
+    "direction": -1,
+    "metric": 0,
+    "price_min_PETR3": 19.550189971923828,
+    "price_min_check_PETR3": true,
+    "price_max_PETR3": 37.59614944458008,
+    "price_max_check_PETR3": true,
+    "price_min_WIZC3": 6.472079753875732,
+    "price_min_check_WIZC3": true,
+    "price_max_WIZC3": 6.205621719360352,
+    "price_max_check_WIZC3": true,
+    "price_min_UNIP6": 73.0545654296875,
+    "price_min_check_UNIP6": true,
+    "price_max_UNIP6": 78.5782241821289,
+    "price_max_check_UNIP6": true,
+    "price_min_KEPL3": 12.125859260559082,
+    "price_min_check_KEPL3": true,
+    "price_max_KEPL3": 12.3053560256958,
+    "price_max_check_KEPL3": true,
+    "price_min_VLID3": 18.24931526184082,
+    "price_min_check_VLID3": true,
+    "price_max_VLID3": 17.418672561645508,
+    "price_max_check_VLID3": true
+>>>>>>> Stashed changes
 }

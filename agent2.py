@@ -13,11 +13,13 @@ action = Action()
 async def plan_event(ctx: Context):
     pass
     
-@agent2.on_interval(period=3600.5)
+@agent2.on_interval(period=10.5)
 async def plan_interval(ctx: Context):
     action.date(ctx)
-    await ctx.send(Create_agent.AGENT1_ADDRESS,  Message(message=f'opening')) # if agent2.contexto(ctx, {"horary": "14:32"}) else False
-    # await ctx.send(Create_agent.AGENT1_ADDRESS,  Message(message=f'closing')) # if agent2.contexto(ctx, {"horary": "14:32"}) else False
+    await ctx.send(Create_agent.AGENT1_ADDRESS,  Message(message=f'opening')) if agent2.contexto(ctx, {"horary": "10:30"}) else False
+    await ctx.send(Create_agent.AGENT1_ADDRESS,  Message(message=f'closing')) if agent2.contexto(ctx, {"horary": "17:00"}) else False
+    await ctx.send(Create_agent.AGENT3_ADDRESS,  Message(message=f'management_opening')) if agent2.contexto(ctx, {"horary": "10:30"}) else False
+    await ctx.send(Create_agent.AGENT3_ADDRESS,  Message(message=f'management_closing')) if agent2.contexto(ctx, {"horary": "17:01"}) else False
 
 @agent2.on_message(model=Message)
 async def message_handler(ctx: Context, sender: str, msg: Message):

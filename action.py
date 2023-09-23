@@ -26,14 +26,21 @@ from webdriver_manager.chrome import ChromeDriverManager
 
 class Action:
     def date(self, ctx):
-        time = datetime.now().strftime('%H:%M')
-        ctx.storage.set_belief("horary", time)
-        print("###> update horary <###")
-        
+        # Verifica se o dia atual é um dia útil (0 = segunda-feira, 6 = domingo)
+        if datetime.now().weekday() < 5:  # 0-4 são dias úteis (segunda a sexta)
+            time = datetime.now().strftime('%H:%M')
+            date = datetime.now().strftime("%Y/%m/%d")
+            ctx.storage.set_belief("horary", time)
+            ctx.storage.set_belief("date", date)
+            print("###> update horary <###")
+        else:
+            print("###> Não é um dia útil. Horary não atualizado. <###")
+            
     def get_symbol(self, ctx):
+        options = webdriver.ChromeOptions()
+        options.add_argument("--headless=new")
         # Set up the Chrome driver
-        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
-
+        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
         # Navigate to the URL
         url = 'https://www.fundamentus.com.br/resultado.php'
         driver.get(url)
@@ -80,7 +87,7 @@ class Action:
             
             ctx.storage.set_belief("symbol", next_symbol)
         else:
-            ctx.storage.set_belief("symbol", parametros[0])         
+            ctx.storage.set_belief("symbol", parametros[0])  
             
     def get_min(self, ctx):
         symbol = ctx.storage.get_belief("symbol")
@@ -425,6 +432,12 @@ class Action:
         
         if act_recommended == "sell":
             if get_wallet:
+<<<<<<< Updated upstream
+=======
+                # ctx.storage.set_belief("buy", True)
+                pass
+            else:
+>>>>>>> Stashed changes
                 ctx.storage.set_belief(act_recommended, True)
         else:
             ctx.storage.set_belief(act_recommended, True)
@@ -432,6 +445,7 @@ class Action:
     def check_price(self, ctx):     
         symbol = ctx.storage.get_belief("symbol")           
 
+<<<<<<< Updated upstream
         # Inicie o driver do Chrome
         driver = webdriver.Chrome()
 
@@ -465,6 +479,18 @@ class Action:
             print("A string não contém números ou vírgulas!")
 
         driver.quit()
+=======
+        if not mt5.initialize():
+            print("Falha ao inicializar o MetaTrader 5.")
+            mt5.shutdown()
+        else:
+            print("Conexão ao MetaTrader 5 estabelecida.")
+            
+        mt5.symbol_select(symbol)
+        price=mt5.symbol_info_tick(symbol).ask
+        print("Valor do Preço da Ação AGORA: ", price)
+        ctx.storage.set_belief("price_now", price)
+>>>>>>> Stashed changes
   
     def check_upordown(self, ctx):
         symbol = ctx.storage.get_belief("symbol")
@@ -529,10 +555,10 @@ class Action:
         
         except Exception as e:
             print(f"Erro ao processar o symbol {symbol}: {e}")
-
         
     def sell(self, ctx):
         symbol = ctx.storage.get_belief("symbol")
+<<<<<<< Updated upstream
         quant = 1
         
         
@@ -550,6 +576,90 @@ class Action:
         ctx.storage.set_belief(f"buy_{symbol}", quant)
         print("feito a ação de COMPRAR")
         self.up_buy(ctx)
+=======
+        
+        if not mt5.initialize():
+            print("Falha ao inicializar o MetaTrader 5.")
+            mt5.shutdown()
+        else:
+            print("Conexão ao MetaTrader 5 estabelecida.")
+            
+        mt5.symbol_select(symbol)
+        price=mt5.symbol_info_tick(symbol).bid
+        point = mt5.symbol_info(symbol).point
+        deviation=20
+        lot = 100.0
+        positions=mt5.positions_get(symbol=symbol)
+        for position in positions:
+            price=mt5.symbol_info_tick(symbol).ask
+            deviation=20
+            request={
+                "action": mt5.TRADE_ACTION_DEAL,
+                "symbol": symbol,
+                "volume": lot,
+                "type": mt5.ORDER_TYPE_SELL,
+                "position": position.ticket,
+                "price": price,
+                "deviation": deviation,
+                "magic": 234000,
+                "comment": "python script close",
+                "type_time": mt5.ORDER_TIME_GTC,
+                "type_filling": mt5.ORDER_FILLING_RETURN,
+            }
+            result_compra = mt5.order_send(request)
+            
+        print(result_compra)
+            
+        # Verifique o valor de retcode e tome ação com base nele
+        if result_compra.retcode == 1009:
+            print("Ordem de compra enviada com sucesso!")
+            ctx.storage.set_belief(f"buy_{symbol}", lot)
+            print(f"feito a ação de COMPRAR, o resultado foi {result_compra}")
+            ctx.storage.set_belief('sell', False)
+            self.up_sell(ctx, lot)
+        else:
+            print(f"Falha ao enviar a ordem de compra. Código de retorno: {result_compra.retcode}")
+
+    def buy(self, ctx):
+        symbol = ctx.storage.get_belief("symbol")
+        
+        if not mt5.initialize():
+            print("Falha ao inicializar o MetaTrader 5.")
+            mt5.shutdown()
+        else:
+            print("Conexão ao MetaTrader 5 estabelecida.")
+        
+        mt5.symbol_select(symbol)
+        price=mt5.symbol_info_tick(symbol).ask
+        point = mt5.symbol_info(symbol).point
+        deviation=20
+        lot = 100.0
+        request = {
+            "action": mt5.TRADE_ACTION_DEAL,
+            "symbol": symbol,
+            "volume": lot,
+            "type": mt5.ORDER_TYPE_BUY,
+            "price": price,
+            "deviation": deviation,
+            "magic": 234000,
+            "comment": "python script open",
+            "type_time": mt5.ORDER_TIME_GTC,
+            "type_filling": mt5.ORDER_FILLING_RETURN,
+        }
+        result_compra = mt5.order_send(request)
+        
+        print(result_compra)
+        
+        # Verifique o valor de retcode e tome ação com base nele
+        if result_compra.retcode == 1009:
+            print("Ordem de compra enviada com sucesso!")
+            ctx.storage.set_belief(f"buy_{symbol}", lot)
+            print(f"feito a ação de COMPRAR, o resultado foi {result_compra}")
+            ctx.storage.set_belief('buy', False)
+            self.up_buy(ctx, lot)
+        else:
+            print(f"Falha ao enviar a ordem de compra. Código de retorno: {result_compra.retcode}")
+>>>>>>> Stashed changes
 
 ######################################################## AQUI COLOCA OS ACESSOS AO BANCO #####################################################################
     def up_min(self, ctx):
@@ -573,8 +683,7 @@ class Action:
             print("Pedido POST bem-sucedido! MIN")
         else:
             print("Erro ao fazer o pedido POST MIN. Código de status:", response.status_code)
-
-    
+   
     def up_max(self, ctx):
         symbol = ctx.storage.get_belief("symbol")
         price_max = ctx.storage.get_belief(f"price_max_{symbol}")
@@ -596,14 +705,13 @@ class Action:
             print("Pedido POST bem-sucedido! MAX")
         else:
             print("Erro ao fazer o pedido POST MAX. Código de status:", response.status_code)
-
     
-    def up_buy(self, ctx):
+    def up_buy(self, ctx, lot):
         symbol = ctx.storage.get_belief("symbol")
         price_max = ctx.storage.get_belief(f"price_max_{symbol}")
         price_min = ctx.storage.get_belief(f"price_min_{symbol}")
         price_now = ctx.storage.get_belief("price_now")
-        quant = 1
+        quant = lot
 
         # URL do endpoint onde você deseja fazer o POST
         url = 'http://127.0.0.1:8000/transaction/'
@@ -625,14 +733,13 @@ class Action:
             print("Pedido POST bem-sucedido! BUY")
         else:
             print("Erro ao fazer o pedido POST BUY. Código de status:", response.status_code)
-
     
-    def up_sell(self,ctx):
+    def up_sell(self,ctx, lot):
         symbol = ctx.storage.get_belief("symbol")
         price_max = ctx.storage.get_belief(f"price_max_{symbol}")
         price_min = ctx.storage.get_belief(f"price_min_{symbol}")
         price_now = ctx.storage.get_belief("price_now")
-        quant = 1
+        quant = lot
 
         # URL do endpoint onde você deseja fazer o POST
         url = 'http://127.0.0.1:8000/transaction/'
@@ -681,3 +788,121 @@ class Action:
                 ctx.storage.set_belief("symbol_buy", True)
         else:
             print("Erro ao fazer a requisição GET WALLET. Código de status:", response.status_code)
+
+    def get_list_symbol(self, parametros):
+        response = requests.get("http://127.0.0.1:8000/wallet")
+        if response.status_code == 200:
+            data = response.json()
+            simbolos_diferentes = [item for item in data if item["_symbol"] not in parametros and item["_quant"] != 0]
+            return [item["_symbol"] for item in simbolos_diferentes]
+        else:
+            print("A requisição GET não foi bem-sucedida.")
+            return []
+
+    def management_wallet(self, ctx):
+        options = webdriver.ChromeOptions()
+        options.add_argument("--headless=new")
+        # Set up the Chrome driver
+        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+        # Navigate to the URL
+        url = 'https://www.fundamentus.com.br/resultado.php'
+        driver.get(url)
+
+        # Find the table element
+        local_tabela = '/html/body/div[1]/div[2]/table'
+        elemento = driver.find_element("xpath", local_tabela)
+        html_tabela = elemento.get_attribute('outerHTML')
+        tabela = pd.read_html(str(html_tabela), thousands='.', decimal=',')[0]
+
+        # Clean up and preprocess the data
+        tabela = tabela.set_index("Papel")
+        tabela = tabela[['Cotação', 'EV/EBIT', 'ROIC', 'Liq.2meses']]
+
+        tabela['ROIC'] = tabela['ROIC'].str.replace("%", "")
+        tabela['ROIC'] = tabela['ROIC'].str.replace(".", "")
+        tabela['ROIC'] = tabela['ROIC'].str.replace(",", ".")
+        tabela['ROIC'] = tabela['ROIC'].astype(float)
+
+        tabela = tabela[tabela['Liq.2meses'] > 1000000]
+        tabela = tabela[tabela['EV/EBIT'] > 0]
+        tabela = tabela[tabela['ROIC'] > 0]
+
+        tabela['ranking_ev_ebit'] = tabela['EV/EBIT'].rank(ascending = True)
+        tabela['ranking_roic'] = tabela['ROIC'].rank(ascending = False)
+        tabela['ranking_total'] = tabela['ranking_ev_ebit'] + tabela['ranking_roic']
+
+        tabela = tabela.sort_values('ranking_total')
+
+        # Exclui a primeira linha onde o valor é "Papel"
+        tabela = tabela.iloc[1:]
+
+        # Extrai os valores da coluna "Papel"
+        parametros = tabela.head(6).index.tolist()
+
+        print(parametros)
+            
+        if ctx.storage.get_belief("different"):
+            lista_de_simbolos = self.get_list_symbol(parametros)
+            print("Symbol diferente na carteira: ", lista_de_simbolos)
+            ctx.storage.set_belief("different", False)
+            if lista_de_simbolos[0] != None:
+                ctx.storage.set_belief("symbol", lista_de_simbolos[0])
+        else:
+            lista_de_simbolos = self.get_list_symbol(parametros)
+            current_symbol = ctx.storage.get_belief("symbol")
+
+            if current_symbol in lista_de_simbolos:
+                index = lista_de_simbolos.index(current_symbol)
+                next_index = (index + 1) % len(lista_de_simbolos)
+                next_symbol = lista_de_simbolos[next_index]
+                ctx.storage.set_belief("symbol", next_symbol)
+            else:
+                print("Erro: Símbolo atual não encontrado na lista de símbolos.")                  
+                        
+    def closing_check(self, ctx):
+        options = webdriver.ChromeOptions()
+        options.add_argument("--headless=new")
+        # Set up the Chrome driver
+        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+        # Navigate to the URL
+        url = 'https://www.fundamentus.com.br/resultado.php'
+        driver.get(url)
+
+        # Find the table element
+        local_tabela = '/html/body/div[1]/div[2]/table'
+        elemento = driver.find_element("xpath", local_tabela)
+        html_tabela = elemento.get_attribute('outerHTML')
+        tabela = pd.read_html(str(html_tabela), thousands='.', decimal=',')[0]
+
+        # Clean up and preprocess the data
+        tabela = tabela.set_index("Papel")
+        tabela = tabela[['Cotação', 'EV/EBIT', 'ROIC', 'Liq.2meses']]
+
+        tabela['ROIC'] = tabela['ROIC'].str.replace("%", "")
+        tabela['ROIC'] = tabela['ROIC'].str.replace(".", "")
+        tabela['ROIC'] = tabela['ROIC'].str.replace(",", ".")
+        tabela['ROIC'] = tabela['ROIC'].astype(float)
+
+        tabela = tabela[tabela['Liq.2meses'] > 1000000]
+        tabela = tabela[tabela['EV/EBIT'] > 0]
+        tabela = tabela[tabela['ROIC'] > 0]
+
+        tabela['ranking_ev_ebit'] = tabela['EV/EBIT'].rank(ascending = True)
+        tabela['ranking_roic'] = tabela['ROIC'].rank(ascending = False)
+        tabela['ranking_total'] = tabela['ranking_ev_ebit'] + tabela['ranking_roic']
+
+        tabela = tabela.sort_values('ranking_total')
+
+        # Exclui a primeira linha onde o valor é "Papel"
+        tabela = tabela.iloc[1:]
+
+        # Extrai os valores da coluna "Papel"
+        parametros = tabela.head(6).index.tolist()
+
+        print(parametros)
+        for symbol in parametros:
+            ctx.storage.set_belief(f"price_min_check_{symbol}", False)
+            
+        parametro = self.get_list_symbol(parametros)
+        for symbol in parametro:
+            ctx.storage.set_belief(f"price_min_check_{symbol}", False)
